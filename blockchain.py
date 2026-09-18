@@ -17,7 +17,7 @@ import os
 from wallet import verify_signature, address_from_public_key_hex
 
 GENESIS_PREV_HASH = "0" * 64
-CHAIN_FILE = os.path.join(os.path.dirname(__file__), "chain_data.json")
+CHAIN_FILE = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "chain_data.json")
 
 TX_TYPES = {"earn", "redeem", "transfer", "genesis"}
 

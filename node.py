@@ -19,7 +19,7 @@ from blockchain import OpiusChain, Transaction
 
 app = Flask(__name__)
 
-BUSINESS_WALLET_FILE = os.path.join(os.path.dirname(__file__), "business_wallet.json")
+BUSINESS_WALLET_FILE = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "business_wallet.json")
 
 # --- bootstrap the business (validator) wallet ---
 if os.path.exists(BUSINESS_WALLET_FILE):
