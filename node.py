@@ -13,7 +13,7 @@ to mint (earn) points.
 """
 import json
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from wallet import Wallet
 from blockchain import OpiusChain, Transaction
 
@@ -59,7 +59,11 @@ def auto_seal():
         chain.produce_block(business)
 
 
-@app.route("/wallet/new", methods=["POST"])
+@app.route("/", methods=["GET"])
+def serve_frontend():
+    """Serves the member passbook web app at the node's root URL, so members can just
+    visit a link instead of downloading a file."""
+    return send_from_directory(os.path.dirname(__file__), "index.html")
 def new_wallet():
     """Create a new member wallet. In production the private key should be generated
     client-side (never sent to the server) -- this endpoint is for demo convenience."""

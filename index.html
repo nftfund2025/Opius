@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opius Network — Member Passbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.6.1/elliptic.min.js"></script>
+<style>
+  :root{
+    --ink:#1C2541;
+    --manila:#D8CBAE;
+    --paper:#F7F3E9;
+    --stamp:#A13D2B;
+    --ledger-green:#2F6F4E;
+    --charcoal:#23201B;
+    --line:#C9BB9C;
+    --line-soft:#DED2B6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--manila);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, rgba(0,0,0,0.015) 1px, transparent 1px, transparent 3px);
+    color:var(--charcoal);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 80px;
+  }
+  .passbook{
+    width:100%;
+    max-width:460px;
+  }
+  .cover{
+    background:var(--ink);
+    color:var(--paper);
+    border-radius:6px 6px 0 0;
+    padding:28px 26px 22px;
+    position:relative;
+    overflow:hidden;
+  }
+  .cover::after{
+    content:"";
+    position:absolute;
+    inset:6px;
+    border:1px solid rgba(247,243,233,0.18);
+    border-radius:3px;
+    pointer-events:none;
+  }
+  .brand-mark{
+    font-family:'Fraunces', serif;
+    font-size:11px;
+    letter-spacing:0.14em;
+    color:rgba(247,243,233,0.55);
+    margin:0 0 4px;
+  }
+  .brand-title{
+    font-family:'Fraunces', serif;
+    font-size:28px;
+    font-weight:500;
+    margin:0;
+    line-height:1.15;
+  }
+  .brand-sub{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:rgba(247,243,233,0.6);
+    margin-top:6px;
+  }
+  .card{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-top:none;
+    padding:24px 26px 8px;
+  }
+  .card:last-child{ border-radius:0 0 6px 6px; padding-bottom:26px; }
+
+  /* --- setup screen --- */
+  .setup-copy{
+    font-size:14.5px;
+    line-height:1.55;
+    color:var(--charcoal);
+    margin:4px 0 20px;
+  }
+  .btn{
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:var(--paper);
+    padding:11px 18px;
+    border-radius:3px;
+    cursor:pointer;
+    width:100%;
+    margin-bottom:10px;
+    transition:transform 0.08s ease;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn.secondary{
+    background:transparent;
+    color:var(--ink);
+  }
+  .btn.small{ width:auto; padding:8px 14px; font-size:12.5px; margin:0; }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .divider-word{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:#8b7f66;
+    margin:14px 0;
+  }
+  input[type=text], input[type=number], textarea{
+    width:100%;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13.5px;
+    padding:10px 11px;
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:3px;
+    margin-bottom:12px;
+    color:var(--charcoal);
+  }
+  label{
+    font-size:11.5px;
+    font-weight:600;
+    color:#6b5f47;
+    display:block;
+    margin-bottom:5px;
+  }
+
+  /* --- balance stamp block --- */
+  .address-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:#6b5f47;
+    margin-bottom:18px;
+    gap:8px;
+  }
+  .address-row span.addr{
+    overflow-wrap:anywhere;
+    white-space:normal;
+    user-select:all;
+    cursor:text;
+  }
+  .balance-block{
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:22px 20px;
+    text-align:center;
+    position:relative;
+    margin-bottom:20px;
+    background:
+      radial-gradient(circle at top right, rgba(161,61,43,0.05), transparent 60%);
+  }
+  .balance-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:#8b7f66;
+    margin-bottom:6px;
+  }
+  .balance-figure{
+    font-family:'Fraunces', serif;
+    font-size:44px;
+    font-weight:500;
+    line-height:1;
+  }
+  .balance-figure .unit{
+    font-size:16px;
+    font-family:'IBM Plex Mono', monospace;
+    color:#6b5f47;
+    margin-left:6px;
+  }
+  .stamp{
+    position:absolute;
+    top:12px;
+    right:14px;
+    width:52px;
+    height:52px;
+    border:2px solid var(--stamp);
+    border-radius:50%;
+    color:var(--stamp);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:8.5px;
+    font-weight:600;
+    letter-spacing:0.03em;
+    text-align:center;
+    line-height:1.2;
+    transform:rotate(9deg);
+    opacity:0.85;
+  }
+  .stamp.pulse{ animation: thud 0.4s ease; }
+  @keyframes thud{
+    0%{ transform:rotate(9deg) scale(1.5); opacity:0; }
+    60%{ transform:rotate(9deg) scale(0.95); opacity:1; }
+    100%{ transform:rotate(9deg) scale(1); opacity:0.85; }
+  }
+
+  .actions-row{ display:flex; gap:10px; margin-bottom:6px; }
+  .actions-row .btn{ margin-bottom:0; }
+
+  .panel{
+    border-top:1px dashed var(--line);
+    margin-top:18px;
+    padding-top:16px;
+    display:none;
+  }
+  .panel.open{ display:block; }
+  .panel-title{
+    font-family:'Fraunces', serif;
+    font-size:16px;
+    margin:0 0 12px;
+  }
+  .msg{
+    font-size:12.5px;
+    font-family:'IBM Plex Mono', monospace;
+    padding:9px 11px;
+    border-radius:3px;
+    margin-bottom:12px;
+    display:none;
+  }
+  .msg.error{ display:block; background:#f6dfd8; color:#7a2c1b; }
+  .msg.ok{ display:block; background:#dcece2; color:#1f4d34; }
+
+  /* --- ledger --- */
+  .ledger-title{
+    font-family:'Fraunces', serif;
+    font-size:16px;
+    margin:8px 0 2px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+  }
+  .ledger-title button{
+    background:none; border:none; cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; color:#6b5f47; padding:0;
+  }
+  .ledger-row{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    padding:11px 0;
+    border-bottom:1px solid var(--line-soft);
+    font-size:13px;
+  }
+  .ledger-row:last-child{ border-bottom:none; }
+  .ledger-left .type{
+    font-weight:600;
+    text-transform:capitalize;
+  }
+  .ledger-left .memo{
+    color:#6b5f47;
+    font-size:12px;
+    margin-top:2px;
+  }
+  .ledger-left .time{
+    color:#a3987e;
+    font-size:11px;
+    font-family:'IBM Plex Mono', monospace;
+    margin-top:2px;
+  }
+  .ledger-right{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    white-space:nowrap;
+    text-align:right;
+  }
+  .ledger-right.pos{ color:var(--ledger-green); }
+  .ledger-right.neg{ color:var(--stamp); }
+  .empty-note{
+    font-size:12.5px;
+    color:#8b7f66;
+    padding:14px 0;
+    text-align:center;
+    font-style:italic;
+  }
+  .footer-note{
+    text-align:center;
+    font-size:11px;
+    color:#8b7f66;
+    margin-top:16px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .key-reveal{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:10px;
+    word-break:break-all;
+    margin-bottom:10px;
+    color:var(--stamp);
+  }
+</style>
+</head>
+<body>
+
+<div class="passbook">
+  <div class="cover">
+    <p class="brand-mark">OPIUS NETWORK</p>
+    <h1 class="brand-title">Member Passbook</h1>
+    <p class="brand-sub" id="chainStatus">connecting to ledger…</p>
+  </div>
+
+  <div class="msg error" id="fatalError" style="margin:0 0 20px; display:none;"></div>
+
+  <!-- SETUP SCREEN -->
+  <div class="card" id="setupCard">
+    <p class="setup-copy">Your passbook is a wallet on Opius Network. It's created and held right here in your browser — nobody else, including the business, ever sees your private key.</p>
+    <button class="btn" id="btnCreate">Open a new passbook</button>
+    <div class="divider-word">or</div>
+    <button class="btn secondary" id="btnShowImport">Restore from a saved key</button>
+    <div id="importPanel" class="panel">
+      <label for="importKey">Private key (hex)</label>
+      <input type="text" id="importKey" placeholder="Paste your saved private key">
+      <button class="btn" id="btnImport">Restore passbook</button>
+    </div>
+    <div class="msg error" id="setupMsg"></div>
+  </div>
+
+  <!-- WALLET SCREEN -->
+  <div class="card" id="walletCard" style="display:none;">
+    <div class="address-row">
+      <span class="addr" id="addrText"></span>
+      <button class="btn small secondary" id="btnCopyAddr">Copy</button>
+    </div>
+
+    <div class="balance-block">
+      <div class="stamp" id="stampSeal">VALID<br>LEDGER</div>
+      <div class="balance-label">CURRENT BALANCE</div>
+      <div class="balance-figure"><span id="balanceNum">—</span><span class="unit">OPI</span></div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn" id="btnOpenSend" style="flex:1;">Send</button>
+      <button class="btn secondary" id="btnOpenRedeem" style="flex:1;">Redeem</button>
+    </div>
+    <button class="btn secondary" id="btnTestTopUp">Test top-up (+500 OPI)</button>
+    <button class="btn secondary" id="btnOpenBackup">Reveal private key (backup)</button>
+    <button class="btn secondary" id="btnOpenMint">Business: mint points (testing)</button>
+
+    <div class="msg" id="walletMsg"></div>
+
+    <div class="panel" id="sendPanel">
+      <p class="panel-title">Send points</p>
+      <label for="sendTo">Recipient address</label>
+      <input type="text" id="sendTo" placeholder="opi1...">
+      <label for="sendAmount">Amount</label>
+      <input type="number" id="sendAmount" min="1" placeholder="0">
+      <label for="sendMemo">Memo (optional)</label>
+      <input type="text" id="sendMemo" placeholder="What's this for?">
+      <button class="btn" id="btnSendConfirm">Confirm send</button>
+    </div>
+
+    <div class="panel" id="redeemPanel">
+      <p class="panel-title">Redeem points</p>
+      <label for="redeemAmount">Amount</label>
+      <input type="number" id="redeemAmount" min="1" placeholder="0">
+      <label for="redeemMemo">Redeeming for</label>
+      <input type="text" id="redeemMemo" placeholder="e.g. free coffee">
+      <button class="btn" id="btnRedeemConfirm">Confirm redeem</button>
+    </div>
+
+    <div class="panel" id="backupPanel">
+      <p class="panel-title">Your private key</p>
+      <p class="setup-copy" style="margin-top:0;">Save this somewhere safe. Anyone with this key can spend your points. Opius Network cannot recover it for you.</p>
+      <div class="key-reveal" id="privKeyReveal"></div>
+      <button class="btn secondary" id="btnCopyKey">Copy key</button>
+    </div>
+
+    <div class="panel" id="mintPanel">
+      <p class="panel-title">Mint to any address</p>
+      <p class="setup-copy" style="margin-top:0;">For testing only. In real use, minting happens automatically from your POS/checkout, not from this screen.</p>
+      <label for="mintAdminKey">Admin key</label>
+      <input type="text" id="mintAdminKey" placeholder="Business admin key">
+      <label for="mintTo">Recipient address</label>
+      <input type="text" id="mintTo" placeholder="opi1...">
+      <label for="mintAmount">Amount</label>
+      <input type="number" id="mintAmount" min="1" placeholder="0">
+      <label for="mintMemo">Memo (optional)</label>
+      <input type="text" id="mintMemo" placeholder="e.g. test top up">
+      <button class="btn" id="btnMintConfirm">Mint</button>
+    </div>
+
+    <div class="ledger-title">
+      <span>Ledger</span>
+      <button id="btnRefresh">refresh</button>
+    </div>
+    <div id="ledgerList"></div>
+  </div>
+
+  <div class="footer-note">opius-node-production.up.railway.app</div>
+</div>
+
+<script>
+window.addEventListener('error', (e) => {
+  const banner = document.getElementById('fatalError');
+  if(banner && banner.style.display === 'none'){
+    banner.style.display = 'block';
+    banner.textContent = 'Something failed to load (' + (e.message || 'script error') + '). Try reloading the page.';
+  }
+});
+
+if(typeof elliptic === 'undefined'){
+  const banner = document.getElementById('fatalError');
+  banner.style.display = 'block';
+  banner.textContent = 'The cryptography library failed to load from the CDN. Check your internet connection and reload.';
+  throw new Error('elliptic.js not loaded');
+}
+
+const API = ""; // served from the same origin as the API now, so no cross-origin URL needed
+const EC = elliptic.ec;
+const ec = new EC('secp256k1');
+
+// ---------- byte / hex helpers ----------
+function toHex(buf){
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function hexToBytes(hex){
+  const arr = new Uint8Array(hex.length/2);
+  for(let i=0;i<arr.length;i++) arr[i] = parseInt(hex.substr(i*2,2),16);
+  return arr;
+}
+async function sha256(bytes){
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return toHex(digest);
+}
+
+// ---------- canonical JSON, matching Python's json.dumps(obj, sort_keys=True) ----------
+function escapeJSONString(s){
+  let out = '"';
+  for(const ch of s){
+    const code = ch.codePointAt(0);
+    if(ch === '"') out += '\\"';
+    else if(ch === '\\') out += '\\\\';
+    else if(ch === '\n') out += '\\n';
+    else if(ch === '\r') out += '\\r';
+    else if(ch === '\t') out += '\\t';
+    else if(code < 0x20) out += '\\u' + code.toString(16).padStart(4,'0');
+    else if(code > 0x7e) {
+      // mirror Python's ensure_ascii=True default
+      if(code > 0xFFFF){
+        const c = code - 0x10000;
+        const hi = 0xD800 + (c >> 10);
+        const lo = 0xDC00 + (c & 0x3FF);
+        out += '\\u' + hi.toString(16).padStart(4,'0') + '\\u' + lo.toString(16).padStart(4,'0');
+      } else {
+        out += '\\u' + code.toString(16).padStart(4,'0');
+      }
+    } else out += ch;
+  }
+  return out + '"';
+}
+function canonicalValue(v){
+  if(v === null || v === undefined) return 'null';
+  if(typeof v === 'number') return String(v);
+  if(typeof v === 'string') return escapeJSONString(v);
+  throw new Error('unsupported type in canonical payload');
+}
+function canonicalStringify(obj){
+  const keys = Object.keys(obj).sort();
+  const parts = keys.map(k => escapeJSONString(k) + ': ' + canonicalValue(obj[k]));
+  return '{' + parts.join(', ') + '}';
+}
+
+// ---------- wallet ----------
+let wallet = null; // { priv, pub, address }
+
+function addressFromPubHex(pubHexBytes){
+  return sha256(pubHexBytes).then(digestHex => 'opi1' + digestHex.slice(-40));
+}
+
+async function walletFromPrivateHex(privHex){
+  const key = ec.keyFromPrivate(privHex, 'hex');
+  const pubHex = key.getPublic(false, 'hex');
+  const address = await addressFromPubHex(hexToBytes(pubHex));
+  return { priv: privHex.padStart(64,'0'), pub: pubHex, address, key };
+}
+
+async function createWallet(){
+  const key = ec.genKeyPair();
+  const privHex = key.getPrivate('hex').padStart(64,'0');
+  return walletFromPrivateHex(privHex);
+}
+
+async function signPayload(w, payload){
+  const canonical = canonicalStringify(payload);
+  const msgBytes = new TextEncoder().encode(canonical);
+  const digestHex = await sha256(msgBytes);
+  const sig = w.key.sign(hexToBytes(digestHex));
+  return sig.toDER('hex');
+}
+
+// ---------- persistence (per-user, private, survives reloads) ----------
+async function saveWallet(w){
+  try{
+    await window.storage.set('opius-wallet-privkey', w.priv, false);
+  }catch(e){ console.error('storage save failed', e); }
+}
+async function loadSavedWallet(){
+  try{
+    const res = await window.storage.get('opius-wallet-privkey', false);
+    if(res && res.value) return await walletFromPrivateHex(res.value);
+  }catch(e){ /* no saved wallet yet */ }
+  return null;
+}
+
+// ---------- API calls ----------
+async function apiGet(path){
+  const r = await fetch(API + path);
+  return r.json();
+}
+async function apiPost(path, body, extraHeaders){
+  const r = await fetch(API + path, {
+    method:'POST',
+    headers:{'Content-Type':'application/json', ...(extraHeaders||{})},
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+// ---------- UI wiring ----------
+const el = id => document.getElementById(id);
+function showMsg(node, text, ok){
+  node.textContent = text;
+  node.className = 'msg ' + (ok ? 'ok' : 'error');
+}
+function closeAllPanels(){
+  ['sendPanel','redeemPanel','backupPanel','mintPanel'].forEach(id => el(id).classList.remove('open'));
+}
+function togglePanel(id){
+  const wasOpen = el(id).classList.contains('open');
+  closeAllPanels();
+  el('walletMsg').className = 'msg';
+  if(!wasOpen) el(id).classList.add('open');
+}
+
+async function refreshBalance(){
+  const data = await apiGet('/balance/' + wallet.address);
+  el('balanceNum').textContent = (data.balance ?? 0).toLocaleString();
+  const stamp = el('stampSeal');
+  stamp.classList.remove('pulse');
+  void stamp.offsetWidth;
+  stamp.classList.add('pulse');
+}
+
+async function refreshLedger(){
+  const list = el('ledgerList');
+  list.innerHTML = '<div class="empty-note">loading…</div>';
+  try{
+    const data = await apiGet('/chain');
+    const mine = [];
+    for(const block of data.blocks){
+      for(const tx of block.transactions){
+        if(tx.tx_type === 'genesis') continue;
+        if(tx.sender_address === wallet.address || tx.recipient === wallet.address){
+          mine.push(tx);
+        }
+      }
+    }
+    mine.sort((a,b) => b.timestamp - a.timestamp);
+    if(mine.length === 0){
+      list.innerHTML = '<div class="empty-note">No entries yet. Once you earn or move points, they\'ll show up here.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    for(const tx of mine){
+      const outgoing = tx.sender_address === wallet.address && tx.tx_type !== 'earn';
+      const sign = outgoing ? '−' : '+';
+      const cls = outgoing ? 'neg' : 'pos';
+      const date = new Date(tx.timestamp * 1000);
+      const row = document.createElement('div');
+      row.className = 'ledger-row';
+      row.innerHTML = `
+        <div class="ledger-left">
+          <div class="type">${tx.tx_type}</div>
+          <div class="memo">${tx.memo ? escapeHtml(tx.memo) : '—'}</div>
+          <div class="time">${date.toLocaleString()}</div>
+        </div>
+        <div class="ledger-right ${cls}">${sign}${tx.amount.toLocaleString()}</div>
+      `;
+      list.appendChild(row);
+    }
+  }catch(e){
+    list.innerHTML = '<div class="empty-note">Couldn\'t load the ledger right now.</div>';
+  }
+}
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function enterWallet(){
+  el('setupCard').style.display = 'none';
+  el('walletCard').style.display = 'block';
+  el('addrText').textContent = wallet.address;
+  el('privKeyReveal').textContent = wallet.priv;
+  await refreshBalance();
+  await refreshLedger();
+}
+
+el('btnCreate').onclick = async () => {
+  wallet = await createWallet();
+  await saveWallet(wallet);
+  await enterWallet();
+};
+
+el('btnShowImport').onclick = () => el('importPanel').classList.toggle('open');
+
+el('btnImport').onclick = async () => {
+  const raw = el('importKey').value.trim();
+  if(!/^[0-9a-fA-F]{1,64}$/.test(raw)){
+    showMsg(el('setupMsg'), 'That doesn\'t look like a valid private key.', false);
+    return;
+  }
+  wallet = await walletFromPrivateHex(raw);
+  await saveWallet(wallet);
+  await enterWallet();
+};
+
+async function copyText(text, btn){
+  const original = btn.textContent;
+  try{
+    if(navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+    } else {
+      // fallback for non-secure contexts (e.g. opening the file directly) or older browsers
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    btn.textContent = 'Copied';
+  }catch(e){
+    btn.textContent = 'Tap & hold to select';
+  }
+  setTimeout(() => { btn.textContent = original; }, 1800);
+}
+
+el('btnCopyAddr').onclick = () => copyText(wallet.address, el('btnCopyAddr'));
+el('btnCopyKey').onclick = () => copyText(wallet.priv, el('btnCopyKey'));
+el('btnRefresh').onclick = () => { refreshBalance(); refreshLedger(); };
+
+el('btnOpenSend').onclick = () => togglePanel('sendPanel');
+el('btnOpenRedeem').onclick = () => togglePanel('redeemPanel');
+el('btnOpenBackup').onclick = () => togglePanel('backupPanel');
+el('btnOpenMint').onclick = () => togglePanel('mintPanel');
+
+el('btnMintConfirm').onclick = async () => {
+  const adminKey = el('mintAdminKey').value.trim();
+  const recipient = el('mintTo').value.trim();
+  const amount = parseInt(el('mintAmount').value, 10);
+  const memo = el('mintMemo').value.trim();
+  const msg = el('walletMsg');
+  if(!recipient || !amount || amount <= 0){
+    showMsg(msg, 'Enter a recipient address and an amount greater than 0.', false);
+    return;
+  }
+  const result = await apiPost('/earn', { recipient, amount, memo }, { 'X-Admin-Secret': adminKey });
+  if(result.ok){
+    showMsg(msg, `Minted ${amount} OPI to ${recipient.slice(0,10)}…`, true);
+    el('mintTo').value=''; el('mintAmount').value=''; el('mintMemo').value='';
+    closeAllPanels();
+    if(recipient === wallet.address){ await refreshBalance(); await refreshLedger(); }
+  } else {
+    showMsg(msg, result.error || 'Mint failed.', false);
+  }
+};
+
+el('btnTestTopUp').onclick = async () => {
+  const msg = el('walletMsg');
+  el('btnTestTopUp').disabled = true;
+  try{
+    const result = await apiPost('/earn', { recipient: wallet.address, amount: 500, memo: 'test top up' });
+    if(result.ok){
+      showMsg(msg, 'Topped up 500 OPI.', true);
+      await refreshBalance(); await refreshLedger();
+    } else {
+      showMsg(msg, result.error || 'Top-up failed.', false);
+    }
+  }catch(e){
+    showMsg(msg, 'Could not reach the ledger. Check your connection.', false);
+  }
+  el('btnTestTopUp').disabled = false;
+};
+
+el('btnSendConfirm').onclick = async () => {
+  const recipient = el('sendTo').value.trim();
+  const amount = parseInt(el('sendAmount').value, 10);
+  const memo = el('sendMemo').value.trim();
+  const msg = el('walletMsg');
+  if(!recipient || !amount || amount <= 0){
+    showMsg(msg, 'Enter a recipient address and an amount greater than 0.', false);
+    return;
+  }
+  const payload = {
+    tx_type:'transfer', sender_address: wallet.address, sender_pubkey: wallet.pub,
+    recipient, amount, memo, timestamp: Date.now()/1000
+  };
+  const signature = await signPayload(wallet, payload);
+  const result = await apiPost('/transfer', {...payload, signature});
+  if(result.ok){
+    showMsg(msg, `Sent ${amount} OPI.`, true);
+    el('sendTo').value=''; el('sendAmount').value=''; el('sendMemo').value='';
+    closeAllPanels();
+    await refreshBalance(); await refreshLedger();
+  } else {
+    showMsg(msg, result.error || 'Send failed.', false);
+  }
+};
+
+el('btnRedeemConfirm').onclick = async () => {
+  const amount = parseInt(el('redeemAmount').value, 10);
+  const memo = el('redeemMemo').value.trim();
+  const msg = el('walletMsg');
+  if(!amount || amount <= 0){
+    showMsg(msg, 'Enter an amount greater than 0.', false);
+    return;
+  }
+  const payload = {
+    tx_type:'redeem', sender_address: wallet.address, sender_pubkey: wallet.pub,
+    recipient: null, amount, memo, timestamp: Date.now()/1000
+  };
+  const signature = await signPayload(wallet, payload);
+  const result = await apiPost('/redeem', {...payload, signature});
+  if(result.ok){
+    showMsg(msg, `Redeemed ${amount} OPI.`, true);
+    el('redeemAmount').value=''; el('redeemMemo').value='';
+    closeAllPanels();
+    await refreshBalance(); await refreshLedger();
+  } else {
+    showMsg(msg, result.error || 'Redeem failed.', false);
+  }
+};
+
+// ---------- boot ----------
+(async function boot(){
+  try{
+    const stats = await apiGet('/stats');
+    el('chainStatus').textContent = `${stats.blocks} blocks · ${stats.chain_valid ? 'ledger verified' : 'ledger issue detected'}`;
+  }catch(e){
+    el('chainStatus').textContent = 'ledger unreachable';
+  }
+  try{
+    const saved = await loadSavedWallet();
+    if(saved){
+      wallet = saved;
+      await enterWallet();
+    }
+  }catch(e){
+    console.error('boot error', e);
+    const banner = el('fatalError');
+    banner.style.display = 'block';
+    banner.textContent = 'Could not restore your saved passbook. You can still open a new one below.';
+  }
+})();
+</script>
+</body>
+</html>
