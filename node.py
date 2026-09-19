@@ -24,7 +24,7 @@ app = Flask(__name__)
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Admin-Secret"
     return response
 
 
@@ -75,7 +75,13 @@ def get_balance(address):
 @app.route("/earn", methods=["POST"])
 def earn():
     """Business mints loyalty points to a customer. Signed by the business wallet server-side
-    since only the business is allowed to mint."""
+    since only the business is allowed to mint. Requires a secret admin key so this can't be
+    triggered by anyone who has the frontend's source code -- only someone who also knows the key."""
+    admin_secret = os.environ.get("ADMIN_SECRET")
+    provided = request.headers.get("X-Admin-Secret", "")
+    if admin_secret and provided != admin_secret:
+        return jsonify({"ok": False, "error": "unauthorized: missing or incorrect admin key"}), 401
+
     data = request.json
     recipient = data["recipient"]
     amount = int(data["amount"])
