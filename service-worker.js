@@ -2,11 +2,11 @@
 // Minimal caching so the app shell loads even on a flaky connection, and so the app
 // qualifies as an installable PWA (required by Android/Chrome and by PWABuilder).
 // Live data (balances, chain, transactions) always goes to the network -- only the
-// static shell is cached.
+// static shell is cached, and even that uses network-first so updates are never stuck
+// behind a stale cache.
 
-const CACHE_NAME = 'opius-shell-v1';
+const CACHE_NAME = 'opius-shell-v2'; // bumped: v1 had a caching bug that served stale code forever
 const SHELL_FILES = [
-  '/',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
@@ -39,7 +39,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Shell files: cache-first, falling back to network
+  // The app pages themselves (/, /explorer): network-first, so any new deploy is picked
+  // up immediately. Falls back to cache only if the network is genuinely unreachable.
+  const isAppPage = url.pathname === '/' || url.pathname === '/explorer';
+  if (isAppPage) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Static assets (icons, manifest): cache-first is fine, these rarely change
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
