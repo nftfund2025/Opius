@@ -509,16 +509,16 @@ async function signPayload(w, payload){
   return sig.toDER('hex');
 }
 
-// ---------- persistence (per-user, private, survives reloads) ----------
+// ---------- persistence (per-device, survives app close/reopen) ----------
 async function saveWallet(w){
   try{
-    await window.storage.set('opius-wallet-privkey', w.priv, false);
+    localStorage.setItem('opius-wallet-privkey', w.priv);
   }catch(e){ console.error('storage save failed', e); }
 }
 async function loadSavedWallet(){
   try{
-    const res = await window.storage.get('opius-wallet-privkey', false);
-    if(res && res.value) return await walletFromPrivateHex(res.value);
+    const saved = localStorage.getItem('opius-wallet-privkey');
+    if(saved) return await walletFromPrivateHex(saved);
   }catch(e){ /* no saved wallet yet */ }
   return null;
 }
