@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opius Network — Ledger Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C2541;
+    --manila:#D8CBAE;
+    --paper:#F7F3E9;
+    --stamp:#A13D2B;
+    --ledger-green:#2F6F4E;
+    --charcoal:#23201B;
+    --line:#C9BB9C;
+    --line-soft:#DED2B6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--manila);
+    background-image:repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, rgba(0,0,0,0.015) 1px, transparent 1px, transparent 3px);
+    color:var(--charcoal);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding:0 0 60px;
+  }
+  a{ color:inherit; }
+  .wrap{ max-width:760px; margin:0 auto; padding:0 16px; }
+
+  .cover{
+    background:var(--ink);
+    color:var(--paper);
+    padding:30px 0 24px;
+    margin-bottom:22px;
+  }
+  .cover-inner{ max-width:760px; margin:0 auto; padding:0 16px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px; }
+  .brand-mark{ font-family:'Fraunces', serif; font-size:11px; letter-spacing:0.14em; color:rgba(247,243,233,0.55); margin:0 0 4px; }
+  .brand-title{ font-family:'Fraunces', serif; font-size:26px; font-weight:500; margin:0; }
+  .nav-link{ font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:rgba(247,243,233,0.75); text-decoration:none; border-bottom:1px solid rgba(247,243,233,0.35); }
+
+  .stats-strip{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(120px,1fr));
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-bottom:24px;
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .stat-cell{ background:var(--paper); padding:14px 16px; }
+  .stat-label{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:#8b7f66; letter-spacing:0.05em; margin-bottom:4px; }
+  .stat-value{ font-family:'Fraunces', serif; font-size:22px; font-weight:500; }
+  .stat-value.ok{ color:var(--ledger-green); }
+  .stat-value.bad{ color:var(--stamp); }
+
+  .search-block{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:16px;
+    margin-bottom:24px;
+  }
+  .search-row{ display:flex; gap:8px; }
+  input[type=text]{
+    flex:1;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13.5px;
+    padding:10px 11px;
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:3px;
+    color:var(--charcoal);
+  }
+  .btn{
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:var(--paper);
+    padding:10px 16px;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .btn.small{ padding:6px 11px; font-size:12px; }
+  .btn.secondary{ background:transparent; color:var(--ink); }
+  .search-hint{ font-size:11.5px; color:#8b7f66; margin-top:8px; }
+
+  .section-title{
+    font-family:'Fraunces', serif;
+    font-size:18px;
+    margin:0 0 10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+  }
+
+  .card{ background:var(--paper); border:1px solid var(--line); border-radius:4px; margin-bottom:24px; }
+
+  .block-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:13px 16px;
+    border-bottom:1px solid var(--line-soft);
+    cursor:pointer;
+    gap:10px;
+  }
+  .block-row:last-child{ border-bottom:none; }
+  .block-row:hover{ background:rgba(28,37,65,0.03); }
+  .block-idx{ font-family:'Fraunces', serif; font-size:16px; font-weight:500; min-width:60px; }
+  .block-meta{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:#8b7f66; }
+  .block-count{ font-family:'IBM Plex Mono', monospace; font-size:12px; background:var(--ink); color:var(--paper); border-radius:10px; padding:2px 9px; }
+
+  .tx-detail{ display:none; padding:0 16px 14px; border-bottom:1px solid var(--line-soft); }
+  .tx-detail.open{ display:block; }
+  .tx-row{ padding:9px 0; border-top:1px dashed var(--line-soft); font-size:12.5px; }
+  .tx-row:first-child{ border-top:none; }
+  .tx-type{ font-weight:600; text-transform:capitalize; }
+  .tx-line{ font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:#6b5f47; word-break:break-all; margin-top:2px; }
+  .tx-amount{ font-family:'IBM Plex Mono', monospace; font-weight:600; }
+  .tx-amount.pos{ color:var(--ledger-green); }
+  .tx-amount.neg{ color:var(--stamp); }
+
+  .addr-balance{ text-align:center; padding:22px 16px; }
+  .addr-balance .figure{ font-family:'Fraunces', serif; font-size:36px; font-weight:500; }
+  .addr-balance .label{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:#8b7f66; margin-bottom:4px; }
+
+  .empty-note{ font-size:12.5px; color:#8b7f66; padding:16px; text-align:center; font-style:italic; }
+  .load-more{ text-align:center; padding:14px; }
+  .footer-note{ text-align:center; font-size:11px; color:#8b7f66; margin-top:8px; font-family:'IBM Plex Mono', monospace; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div>
+      <p class="brand-mark">OPIUS NETWORK</p>
+      <h1 class="brand-title">Ledger Explorer</h1>
+    </div>
+    <a class="nav-link" href="/">Open Member Passbook →</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="stats-strip" id="statsStrip">
+    <div class="stat-cell"><div class="stat-label">BLOCKS</div><div class="stat-value" id="statBlocks">—</div></div>
+    <div class="stat-cell"><div class="stat-label">TOTAL SUPPLY</div><div class="stat-value" id="statSupply">—</div></div>
+    <div class="stat-cell"><div class="stat-label">MEMBERS</div><div class="stat-value" id="statMembers">—</div></div>
+    <div class="stat-cell"><div class="stat-label">INTEGRITY</div><div class="stat-value" id="statValid">—</div></div>
+  </div>
+
+  <div class="search-block">
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Search address, block #, or transaction hash">
+      <button class="btn" id="searchBtn">Search</button>
+    </div>
+    <div class="search-hint">Every entry on Opius Network is public and verifiable — this page reads directly from the live chain.</div>
+  </div>
+
+  <div id="searchResult"></div>
+
+  <div class="section-title">
+    <span>Blocks</span>
+    <span style="font-family:'IBM Plex Mono', monospace; font-size:11px; color:#8b7f66;" id="blockRangeLabel"></span>
+  </div>
+  <div class="card" id="blockList"><div class="empty-note">Loading blocks…</div></div>
+  <div class="load-more" id="loadMoreWrap" style="display:none;">
+    <button class="btn secondary small" id="loadMoreBtn">Load older blocks</button>
+  </div>
+
+  <div class="footer-note">opius-node-production.up.railway.app · Proof of Authority</div>
+</div>
+
+<script>
+const API = ""; // same origin
+const PAGE_SIZE = 15;
+let allBlocks = [];
+let shownCount = 0;
+
+const el = id => document.getElementById(id);
+
+async function apiGet(path){
+  const r = await fetch(API + path);
+  return r.json();
+}
+
+function toHex(buf){ return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+async function sha256(bytes){ return toHex(await crypto.subtle.digest('SHA-256', bytes)); }
+
+// canonical JSON matching Python's json.dumps(obj, sort_keys=True) -- used to compute tx hashes client-side
+function escapeJSONString(s){
+  let out = '"';
+  for(const ch of s){
+    const code = ch.codePointAt(0);
+    if(ch === '"') out += '\\"';
+    else if(ch === '\\') out += '\\\\';
+    else if(ch === '\n') out += '\\n';
+    else if(ch === '\r') out += '\\r';
+    else if(ch === '\t') out += '\\t';
+    else if(code < 0x20) out += '\\u' + code.toString(16).padStart(4,'0');
+    else if(code > 0x7e){
+      if(code > 0xFFFF){
+        const c = code - 0x10000;
+        out += '\\u' + (0xD800+(c>>10)).toString(16).padStart(4,'0') + '\\u' + (0xDC00+(c&0x3FF)).toString(16).padStart(4,'0');
+      } else out += '\\u' + code.toString(16).padStart(4,'0');
+    } else out += ch;
+  }
+  return out + '"';
+}
+function canonicalValue(v){
+  if(v === null || v === undefined) return 'null';
+  if(typeof v === 'number') return String(v);
+  if(typeof v === 'string') return escapeJSONString(v);
+  throw new Error('unsupported type');
+}
+function canonicalStringify(obj){
+  const keys = Object.keys(obj).sort();
+  return '{' + keys.map(k => escapeJSONString(k) + ': ' + canonicalValue(obj[k])).join(', ') + '}';
+}
+async function txHash(tx){
+  const canonical = canonicalStringify({
+    tx_type: tx.tx_type, sender_address: tx.sender_address, sender_pubkey: tx.sender_pubkey,
+    recipient: tx.recipient, amount: tx.amount, memo: tx.memo, timestamp: tx.timestamp, signature: tx.signature
+  });
+  return sha256(new TextEncoder().encode(canonical));
+}
+
+function short(s, n=14){ if(!s) return '—'; return s.length > n*2 ? s.slice(0,n) + '…' + s.slice(-6) : s; }
+function fmtTime(ts){ return new Date(ts * 1000).toLocaleString(); }
+
+async function loadStats(){
+  try{
+    const stats = await apiGet('/stats');
+    el('statBlocks').textContent = stats.blocks;
+    el('statSupply').textContent = stats.total_supply.toLocaleString();
+    el('statMembers').textContent = stats.members_with_balance;
+    const validEl = el('statValid');
+    validEl.textContent = stats.chain_valid ? 'Valid' : 'Broken';
+    validEl.className = 'stat-value ' + (stats.chain_valid ? 'ok' : 'bad');
+  }catch(e){
+    el('statValid').textContent = 'unreachable';
+  }
+}
+
+async function renderBlockRow(block){
+  const row = document.createElement('div');
+  row.className = 'block-row';
+  row.innerHTML = `
+    <div class="block-idx">#${block.index}</div>
+    <div class="block-meta" style="flex:1;">
+      validator ${short(block.validator, 8)} · ${fmtTime(block.timestamp)}
+    </div>
+    <div class="block-count">${block.transactions.length} tx</div>
+  `;
+  const detail = document.createElement('div');
+  detail.className = 'tx-detail';
+  let detailHtml = '';
+  for(const tx of block.transactions){
+    if(tx.tx_type === 'genesis'){
+      detailHtml += `<div class="tx-row"><span class="tx-type">genesis</span> — chain created</div>`;
+      continue;
+    }
+    const hash = await txHash(tx);
+    detailHtml += `
+      <div class="tx-row">
+        <span class="tx-type">${tx.tx_type}</span>
+        <span class="tx-amount">${tx.amount.toLocaleString()} OPI</span>
+        <div class="tx-line">from ${short(tx.sender_address)} ${tx.recipient ? '→ ' + short(tx.recipient) : '(burned)'}</div>
+        <div class="tx-line">${tx.memo ? escapeHtml(tx.memo) : ''}</div>
+        <div class="tx-line">tx ${short(hash, 10)}</div>
+      </div>
+    `;
+  }
+  detail.innerHTML = detailHtml || '<div class="tx-row">No transactions in this block.</div>';
+  row.onclick = () => detail.classList.toggle('open');
+
+  const container = document.createDocumentFragment();
+  container.appendChild(row);
+  container.appendChild(detail);
+  return container;
+}
+
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function renderNextPage(){
+  const listEl = el('blockList');
+  if(shownCount === 0) listEl.innerHTML = '';
+  const slice = allBlocks.slice(shownCount, shownCount + PAGE_SIZE);
+  for(const block of slice){
+    listEl.appendChild(await renderBlockRow(block));
+  }
+  shownCount += slice.length;
+  el('blockRangeLabel').textContent = `showing ${shownCount} of ${allBlocks.length}`;
+  el('loadMoreWrap').style.display = shownCount < allBlocks.length ? 'block' : 'none';
+}
+
+async function loadBlocks(){
+  try{
+    const data = await apiGet('/chain');
+    allBlocks = data.blocks.slice().reverse(); // newest first
+    shownCount = 0;
+    await renderNextPage();
+  }catch(e){
+    el('blockList').innerHTML = '<div class="empty-note">Could not load the chain right now.</div>';
+  }
+}
+
+el('loadMoreBtn').onclick = renderNextPage;
+
+async function runSearch(){
+  const query = el('searchInput').value.trim();
+  const resultEl = el('searchResult');
+  if(!query){ resultEl.innerHTML = ''; return; }
+  resultEl.innerHTML = '<div class="card"><div class="empty-note">Searching…</div></div>';
+
+  // block index search
+  if(/^\d+$/.test(query)){
+    const block = allBlocks.find(b => b.index === parseInt(query, 10));
+    if(block){
+      resultEl.innerHTML = '';
+      const card = document.createElement('div');
+      card.className = 'card';
+      resultEl.appendChild(card);
+      card.appendChild(await renderBlockRow(block));
+      card.querySelector('.tx-detail').classList.add('open');
+      return;
+    }
+  }
+
+  // address search (starts with opi1)
+  if(query.startsWith('opi1')){
+    try{
+      const bal = await apiGet('/balance/' + query);
+      let html = `
+        <div class="card">
+          <div class="addr-balance">
+            <div class="label">BALANCE</div>
+            <div class="figure">${(bal.balance||0).toLocaleString()} OPI</div>
+          </div>
+        </div>
+        <div class="section-title">Activity for this address</div>
+        <div class="card" id="addrTxList"><div class="empty-note">Loading…</div></div>
+      `;
+      resultEl.innerHTML = html;
+      const listEl = el('addrTxList');
+      const mine = [];
+      for(const block of allBlocks){
+        for(const tx of block.transactions){
+          if(tx.tx_type === 'genesis') continue;
+          if(tx.sender_address === query || tx.recipient === query) mine.push(tx);
+        }
+      }
+      if(mine.length === 0){
+        listEl.innerHTML = '<div class="empty-note">No activity for this address yet.</div>';
+        return;
+      }
+      listEl.innerHTML = '';
+      for(const tx of mine){
+        const outgoing = tx.sender_address === query && tx.tx_type !== 'earn';
+        const row = document.createElement('div');
+        row.className = 'tx-row';
+        row.style.padding = '12px 16px';
+        row.innerHTML = `
+          <span class="tx-type">${tx.tx_type}</span>
+          <span class="tx-amount ${outgoing?'neg':'pos'}">${outgoing?'−':'+'}${tx.amount.toLocaleString()} OPI</span>
+          <div class="tx-line">${fmtTime(tx.timestamp)}${tx.memo ? ' · ' + escapeHtml(tx.memo) : ''}</div>
+        `;
+        listEl.appendChild(row);
+      }
+      return;
+    }catch(e){
+      resultEl.innerHTML = '<div class="card"><div class="empty-note">Could not look up that address.</div></div>';
+      return;
+    }
+  }
+
+  // transaction hash search (scan blocks, compute hashes)
+  for(const block of allBlocks){
+    for(const tx of block.transactions){
+      if(tx.tx_type === 'genesis') continue;
+      const hash = await txHash(tx);
+      if(hash === query || hash.startsWith(query)){
+        resultEl.innerHTML = '';
+        const card = document.createElement('div');
+        card.className = 'card';
+        resultEl.appendChild(card);
+        card.appendChild(await renderBlockRow(block));
+        card.querySelector('.tx-detail').classList.add('open');
+        return;
+      }
+    }
+  }
+
+  resultEl.innerHTML = '<div class="card"><div class="empty-note">No match found. Try a full address (opi1…), a block number, or a transaction hash.</div></div>';
+}
+
+el('searchBtn').onclick = runSearch;
+el('searchInput').addEventListener('keydown', e => { if(e.key === 'Enter') runSearch(); });
+
+(async function boot(){
+  await loadStats();
+  await loadBlocks();
+})();
+</script>
+</body>
+</html>
