@@ -100,29 +100,69 @@
     align-items:baseline;
   }
 
-  .card{ background:var(--paper); border:1px solid var(--line); border-radius:4px; margin-bottom:24px; }
+  .card{ background:var(--paper); border:1px solid var(--line); border-radius:4px; margin-bottom:24px; overflow-x:auto; }
 
-  .block-row{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:13px 16px;
-    border-bottom:1px solid var(--line-soft);
-    cursor:pointer;
-    gap:10px;
+  table.ledger-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.ledger-table th{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:0.04em;
+    color:#8b7f66;
+    text-align:left;
+    padding:10px 12px;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
   }
-  .block-row:last-child{ border-bottom:none; }
-  .block-row:hover{ background:rgba(28,37,65,0.03); }
-  .block-idx{ font-family:'Fraunces', serif; font-size:16px; font-weight:500; min-width:60px; }
-  .block-meta{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:#8b7f66; }
-  .block-count{ font-family:'IBM Plex Mono', monospace; font-size:12px; background:var(--ink); color:var(--paper); border-radius:10px; padding:2px 9px; }
+  table.ledger-table td{
+    padding:10px 12px;
+    border-bottom:1px solid var(--line-soft);
+    vertical-align:top;
+  }
+  table.ledger-table tbody tr:last-child td{ border-bottom:none; }
+  table.ledger-table tbody tr.block-row:hover{ background:rgba(28,37,65,0.03); }
+  .block-idx{ font-family:'Fraunces', serif; font-size:15px; font-weight:500; white-space:nowrap; }
+  .block-count{ font-family:'IBM Plex Mono', monospace; font-size:11px; background:var(--ink); color:var(--paper); border-radius:10px; padding:2px 9px; white-space:nowrap; }
+  .toggle-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    background:none;
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:4px 9px;
+    cursor:pointer;
+    color:var(--ink);
+    white-space:nowrap;
+  }
 
-  .tx-detail{ display:none; padding:0 16px 14px; border-bottom:1px solid var(--line-soft); }
-  .tx-detail.open{ display:block; }
-  .tx-row{ padding:9px 0; border-top:1px dashed var(--line-soft); font-size:12.5px; }
-  .tx-row:first-child{ border-top:none; }
+  .copyable{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    user-select:all;
+    -webkit-user-select:all;
+    word-break:break-all;
+    cursor:text;
+  }
+  .copy-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    background:none;
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:2px 7px;
+    margin-left:6px;
+    cursor:pointer;
+    color:#6b5f47;
+    white-space:nowrap;
+  }
+
+  .tx-detail-row{ display:none; }
+  .tx-detail-row.open{ display:table-row; }
+  .tx-detail-row td{ padding:0 12px 14px; background:rgba(28,37,65,0.02); }
+  table.tx-table{ width:100%; border-collapse:collapse; margin-top:6px; }
+  table.tx-table td{ padding:7px 4px; border-bottom:1px dashed var(--line-soft); font-size:12px; }
+  table.tx-table tr:last-child td{ border-bottom:none; }
+  table.tx-table td.label{ font-family:'IBM Plex Mono', monospace; font-size:10px; color:#8b7f66; white-space:nowrap; width:70px; }
   .tx-type{ font-weight:600; text-transform:capitalize; }
-  .tx-line{ font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:#6b5f47; word-break:break-all; margin-top:2px; }
   .tx-amount{ font-family:'IBM Plex Mono', monospace; font-weight:600; }
   .tx-amount.pos{ color:var(--ledger-green); }
   .tx-amount.neg{ color:var(--stamp); }
@@ -170,7 +210,12 @@
     <span>Blocks</span>
     <span style="font-family:'IBM Plex Mono', monospace; font-size:11px; color:#8b7f66;" id="blockRangeLabel"></span>
   </div>
-  <div class="card" id="blockList"><div class="empty-note">Loading blocks…</div></div>
+  <div class="card">
+    <table class="ledger-table">
+      <thead><tr><th>Block</th><th>Time</th><th>Validator</th><th>Tx</th><th></th></tr></thead>
+      <tbody id="blockList"><tr><td colspan="5" class="empty-note">Loading blocks…</td></tr></tbody>
+    </table>
+  </div>
   <div class="load-more" id="loadMoreWrap" style="display:none;">
     <button class="btn secondary small" id="loadMoreBtn">Load older blocks</button>
   </div>
@@ -232,8 +277,36 @@ async function txHash(tx){
   return sha256(new TextEncoder().encode(canonical));
 }
 
-function short(s, n=14){ if(!s) return '—'; return s.length > n*2 ? s.slice(0,n) + '…' + s.slice(-6) : s; }
+function short(s, n=10){ if(!s) return '—'; return s.length > n*2 ? s.slice(0,n) + '…' + s.slice(-6) : s; }
 function fmtTime(ts){ return new Date(ts * 1000).toLocaleString(); }
+
+async function copyText(text, btn){
+  const original = btn.textContent;
+  try{
+    if(navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    btn.textContent = '✓';
+  }catch(e){
+    btn.textContent = '!';
+  }
+  setTimeout(() => { btn.textContent = original; }, 1200);
+}
+function copyableField(label, value){
+  const id = 'cp' + Math.random().toString(36).slice(2);
+  return `
+    <tr>
+      <td class="label">${label}</td>
+      <td><span class="copyable">${escapeHtml(value)}</span><button class="copy-btn" onclick="copyText(${JSON.stringify(value)}, this)">copy</button></td>
+    </tr>
+  `;
+}
 
 async function loadStats(){
   try{
@@ -249,53 +322,57 @@ async function loadStats(){
   }
 }
 
-async function renderBlockRow(block){
-  const row = document.createElement('div');
-  row.className = 'block-row';
-  row.innerHTML = `
-    <div class="block-idx">#${block.index}</div>
-    <div class="block-meta" style="flex:1;">
-      validator ${short(block.validator, 8)} · ${fmtTime(block.timestamp)}
-    </div>
-    <div class="block-count">${block.transactions.length} tx</div>
-  `;
-  const detail = document.createElement('div');
-  detail.className = 'tx-detail';
-  let detailHtml = '';
+async function txDetailRowsHtml(block){
+  let rows = '';
   for(const tx of block.transactions){
     if(tx.tx_type === 'genesis'){
-      detailHtml += `<div class="tx-row"><span class="tx-type">genesis</span> — chain created</div>`;
+      rows += `<table class="tx-table"><tr><td class="label">genesis</td><td>Chain created</td></tr></table>`;
       continue;
     }
     const hash = await txHash(tx);
-    detailHtml += `
-      <div class="tx-row">
-        <span class="tx-type">${tx.tx_type}</span>
-        <span class="tx-amount">${tx.amount.toLocaleString()} OPI</span>
-        <div class="tx-line">from ${short(tx.sender_address)} ${tx.recipient ? '→ ' + short(tx.recipient) : '(burned)'}</div>
-        <div class="tx-line">${tx.memo ? escapeHtml(tx.memo) : ''}</div>
-        <div class="tx-line">tx ${short(hash, 10)}</div>
-      </div>
-    `;
+    rows += `<table class="tx-table">
+      <tr><td class="label">type</td><td><span class="tx-type">${tx.tx_type}</span> <span class="tx-amount">${tx.amount.toLocaleString()} OPI</span></td></tr>
+      ${copyableField('from', tx.sender_address)}
+      ${tx.recipient ? copyableField('to', tx.recipient) : '<tr><td class="label">to</td><td>(burned)</td></tr>'}
+      ${tx.memo ? `<tr><td class="label">memo</td><td>${escapeHtml(tx.memo)}</td></tr>` : ''}
+      ${copyableField('tx hash', hash)}
+    </table>`;
   }
-  detail.innerHTML = detailHtml || '<div class="tx-row">No transactions in this block.</div>';
-  row.onclick = () => detail.classList.toggle('open');
-
-  const container = document.createDocumentFragment();
-  container.appendChild(row);
-  container.appendChild(detail);
-  return container;
+  return rows || '<div class="empty-note">No transactions in this block.</div>';
 }
 
-function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function blockSummaryRowHtml(block, rowId){
+  return `
+    <tr class="block-row">
+      <td class="block-idx">#${block.index}</td>
+      <td>${fmtTime(block.timestamp)}</td>
+      <td><span class="copyable">${short(block.validator)}</span></td>
+      <td><span class="block-count">${block.transactions.length}</span></td>
+      <td><button class="toggle-btn" onclick="document.getElementById('${rowId}').classList.toggle('open')">details</button></td>
+    </tr>
+  `;
+}
+
+async function renderBlockRow(block, forceOpen){
+  const rowId = 'detail-' + block.index;
+  const detailHtml = await txDetailRowsHtml(block);
+  return `
+    ${blockSummaryRowHtml(block, rowId)}
+    <tr class="tx-detail-row${forceOpen ? ' open' : ''}" id="${rowId}"><td colspan="5">${detailHtml}</td></tr>
+  `;
+}
+
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 
 async function renderNextPage(){
   const listEl = el('blockList');
   if(shownCount === 0) listEl.innerHTML = '';
   const slice = allBlocks.slice(shownCount, shownCount + PAGE_SIZE);
+  let html = '';
   for(const block of slice){
-    listEl.appendChild(await renderBlockRow(block));
+    html += await renderBlockRow(block, false);
   }
+  listEl.insertAdjacentHTML('beforeend', html);
   shownCount += slice.length;
   el('blockRangeLabel').textContent = `showing ${shownCount} of ${allBlocks.length}`;
   el('loadMoreWrap').style.display = shownCount < allBlocks.length ? 'block' : 'none';
@@ -308,7 +385,7 @@ async function loadBlocks(){
     shownCount = 0;
     await renderNextPage();
   }catch(e){
-    el('blockList').innerHTML = '<div class="empty-note">Could not load the chain right now.</div>';
+    el('blockList').innerHTML = '<tr><td colspan="5" class="empty-note">Could not load the chain right now.</td></tr>';
   }
 }
 
@@ -324,12 +401,8 @@ async function runSearch(){
   if(/^\d+$/.test(query)){
     const block = allBlocks.find(b => b.index === parseInt(query, 10));
     if(block){
-      resultEl.innerHTML = '';
-      const card = document.createElement('div');
-      card.className = 'card';
-      resultEl.appendChild(card);
-      card.appendChild(await renderBlockRow(block));
-      card.querySelector('.tx-detail').classList.add('open');
+      const rowsHtml = await renderBlockRow(block, true);
+      resultEl.innerHTML = `<div class="card"><table class="ledger-table"><tbody>${rowsHtml}</tbody></table></div>`;
       return;
     }
   }
@@ -338,17 +411,16 @@ async function runSearch(){
   if(query.startsWith('opi1')){
     try{
       const bal = await apiGet('/balance/' + query);
-      let html = `
+      resultEl.innerHTML = `
         <div class="card">
           <div class="addr-balance">
-            <div class="label">BALANCE</div>
+            <div class="label">BALANCE FOR <span class="copyable">${escapeHtml(query)}</span></div>
             <div class="figure">${(bal.balance||0).toLocaleString()} OPI</div>
           </div>
         </div>
         <div class="section-title">Activity for this address</div>
         <div class="card" id="addrTxList"><div class="empty-note">Loading…</div></div>
       `;
-      resultEl.innerHTML = html;
       const listEl = el('addrTxList');
       const mine = [];
       for(const block of allBlocks){
@@ -361,19 +433,22 @@ async function runSearch(){
         listEl.innerHTML = '<div class="empty-note">No activity for this address yet.</div>';
         return;
       }
-      listEl.innerHTML = '';
+      let rows = '<table class="tx-table">';
       for(const tx of mine){
         const outgoing = tx.sender_address === query && tx.tx_type !== 'earn';
-        const row = document.createElement('div');
-        row.className = 'tx-row';
-        row.style.padding = '12px 16px';
-        row.innerHTML = `
-          <span class="tx-type">${tx.tx_type}</span>
-          <span class="tx-amount ${outgoing?'neg':'pos'}">${outgoing?'−':'+'}${tx.amount.toLocaleString()} OPI</span>
-          <div class="tx-line">${fmtTime(tx.timestamp)}${tx.memo ? ' · ' + escapeHtml(tx.memo) : ''}</div>
+        rows += `
+          <tr>
+            <td class="label">${fmtTime(tx.timestamp)}</td>
+            <td>
+              <span class="tx-type">${tx.tx_type}</span>
+              <span class="tx-amount ${outgoing?'neg':'pos'}">${outgoing?'−':'+'}${tx.amount.toLocaleString()} OPI</span>
+              ${tx.memo ? '<div>' + escapeHtml(tx.memo) + '</div>' : ''}
+            </td>
+          </tr>
         `;
-        listEl.appendChild(row);
       }
+      rows += '</table>';
+      listEl.innerHTML = rows;
       return;
     }catch(e){
       resultEl.innerHTML = '<div class="card"><div class="empty-note">Could not look up that address.</div></div>';
@@ -387,12 +462,8 @@ async function runSearch(){
       if(tx.tx_type === 'genesis') continue;
       const hash = await txHash(tx);
       if(hash === query || hash.startsWith(query)){
-        resultEl.innerHTML = '';
-        const card = document.createElement('div');
-        card.className = 'card';
-        resultEl.appendChild(card);
-        card.appendChild(await renderBlockRow(block));
-        card.querySelector('.tx-detail').classList.add('open');
+        const rowsHtml = await renderBlockRow(block, true);
+        resultEl.innerHTML = `<div class="card"><table class="ledger-table"><tbody>${rowsHtml}</tbody></table></div>`;
         return;
       }
     }
