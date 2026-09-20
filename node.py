@@ -70,6 +70,21 @@ def serve_frontend():
 def serve_explorer():
     """Serves the public block explorer."""
     return send_from_directory(os.path.dirname(__file__), "explorer.html")
+
+
+@app.route("/manifest.json", methods=["GET"])
+def serve_manifest():
+    return send_from_directory(os.path.dirname(__file__), "manifest.json")
+
+
+@app.route("/service-worker.js", methods=["GET"])
+def serve_service_worker():
+    return send_from_directory(os.path.dirname(__file__), "service-worker.js")
+
+
+@app.route("/icons/<path:filename>", methods=["GET"])
+def serve_icons(filename):
+    return send_from_directory(os.path.join(os.path.dirname(__file__), "icons"), filename)
 def new_wallet():
     """Create a new member wallet. In production the private key should be generated
     client-side (never sent to the server) -- this endpoint is for demo convenience."""

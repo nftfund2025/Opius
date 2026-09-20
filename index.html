@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Opius Network — Member Passbook</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1C2541">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -403,7 +407,7 @@
     <div id="ledgerList"></div>
   </div>
 
-  <div class="footer-note">opius-node-production.up.railway.app</div>
+  <div class="footer-note"><a href="/explorer" style="color:inherit;">View Ledger Explorer →</a></div>
 </div>
 
 <script>
@@ -755,6 +759,9 @@ el('btnRedeemConfirm').onclick = async () => {
 
 // ---------- boot ----------
 (async function boot(){
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/service-worker.js').catch(e => console.warn('SW registration failed', e));
+  }
   try{
     const stats = await apiGet('/stats');
     el('chainStatus').textContent = `${stats.blocks} blocks · ${stats.chain_valid ? 'ledger verified' : 'ledger issue detected'}`;
